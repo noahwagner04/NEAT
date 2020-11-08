@@ -11,11 +11,11 @@ class Brain {
 	initNodes(config) {
 		let num = 0;
 		for (let i = 1; i <= config.inputs; i++) {
-			this.inputs.push(new NodeGene(i, "I"));
+			this.inputs.push(i);
 		}
 		num = this.inputs.length;
 		for (let i = num + 1; i <= config.outputs + num; i++) {
-			this.outputs.push(new NodeGene(i, "O"));
+			this.outputs.push(i);
 		}
 	}
 
@@ -23,13 +23,13 @@ class Brain {
 		let innovation = 1;
 		for (let i = 0; i < this.inputs.length; i++) {
 			for (let j = 0; j < this.outputs.length; j++) {
-				this.connectionGenes.push(new ConnectionGene(
-					this.inputs[i].num,
-					this.outputs[j].num,
-					Math.random() * 2 - 1,
-					false,
-					innovation
-				));
+				this.connectionGenes.push({
+					inNode: this.inputs[i],
+					outNode: this.outputs[j],
+					weight: Math.random() * 2 - 1,
+					enabled: true,
+					innovation: innovation
+				});
 				innovation++;
 			}
 		}
@@ -40,11 +40,16 @@ class Brain {
 	}
 
 	findConnection(inNode, outNode) {
-		for (let i = 0; i < this.connectionGenes.length; i++) {
-			if (this.connectionGenes[i].inNode === inNode && this.connectionGenes[i].outNode === outNode) {
-				return this.connectionGenes[i];
+		let nodes = this.inputs.concat(this.hiddens).concat(this.outputs).filter(x => x !== undefined);
+		if (nodes.includes(inNode) && nodes.includes(outNode)) {
+			for (let i = 0; i < this.connectionGenes.length; i++) {
+				if (this.connectionGenes[i].inNode === inNode && this.connectionGenes[i].outNode === outNode) {
+					return this.connectionGenes[i];
+				}
 			}
+			return undefined;
 		}
+		return null;
 	}
 
 	randomizeWeight(inputNode, outputNode) {
@@ -56,15 +61,29 @@ class Brain {
 	}
 
 	addHiddenNode(inputNode, outputNode, i) {
-		
+		let connection = this.findConnection(inputNode, outputNode);
+		if (connection && connection.enabled === true) {
+			let nodes = this.inputs.concat(this.hiddens).concat(this.outputs).filter(x => x !== undefined);
+			let hiddenNode = nodes.length + 1;
+			this.hiddens.push(hiddenNode);
+			connection.enabled = false;
+			this.addConnection(inputNode, hiddenNode, 1, true, i);
+			this.addConnection(hiddenNode, outputNode, connection.weight, true, i + 1);
+		}
 	}
 
-	addConnection(inputNode, outputNode, weight, disabled, i) {
+	addConnection(inputNode, outputNode, weight, enabled, i) {
 		let connection = this.findConnection(inputNode, outputNode);
-		if(connection) {
+		if (connection || connection === null) {
 			return;
 		} else {
-			this.connectionGenes.push(new ConnectionGene(inputNode, outputNode, weight, disabled, i));
+			this.connectionGenes.push({
+				inNode: inputNode,
+				outNode: outputNode,
+				weight: weight,
+				enabled: enabled,
+				innovation: i
+			});
 		}
 	}
 
